@@ -23,17 +23,18 @@ const corsConfig = {
 };
 app.use(cors(corsConfig));
 app.use(express.json());
-
 async function run() {
   const foodCollection = client.db("foddie").collection("food");
 
   try {
+    // Define routes inside the try block
     app.get("/food", async (req, res) => {
       try {
         const result = await foodCollection.find().toArray();
         res.send(result);
       } catch (err) {
-        res.send(err);
+        console.error(err);
+        res.status(500).send("Internal Server Error");
       }
     });
 
@@ -42,60 +43,125 @@ async function run() {
         const addedFood = req.body;
         const result = await foodCollection.insertOne(addedFood);
         res.send(result);
-      } catch (err) {}
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error");
+      }
     });
 
     app.get("/food/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await foodCollection.find(query).toArray();
-      res.send(result);
-    });
-
-    app.patch("/food/:id", async (req, res) => {
-      const requestedDoc = req.body;
-      const id = req.params.id;
-      const options = { upsert: true };
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = {
-        $set: { ...requestedDoc },
-      };
-      const result = await foodCollection.updateOne(filter, updateDoc, options);
-      res.send(result);
-    });
-
-    app.post("/food/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await foodCollection.deleteOne(query);
-      res.send(result);
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await foodCollection.find(query).toArray();
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error");
+      }
     });
 
     app.put("/food/:id", async (req, res) => {
-      const updateDocument = req.body;
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const options = { upsert: true };
-      const updateDoc = {
-        $set: {
-          ...updateDocument,
-        },
-      };
-      const result = await foodCollection.updateOne(query, updateDoc, options);
-      res.send(result);
+      try {
+        const updateDocument = req.body;
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const options = { upsert: true };
+        const updateDoc = {
+          $set: {
+            ...updateDocument,
+          },
+        };
+        const result = await foodCollection.updateOne(
+          query,
+          updateDoc,
+          options
+        );
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error");
+      }
+    });
+
+    app.post("/food/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await foodCollection.deleteOne(query);
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error");
+      }
+    });
+
+    app.patch("/food/:id", async (req, res) => {
+      try {
+        const requestedDoc = req.body;
+        const id = req.params.id;
+        const options = { upsert: true };
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: { ...requestedDoc },
+        };
+        const result = await foodCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error");
+      }
+    });
+    app.get("/available-foods/:status", async (req, res) => {
+      try {
+        const foodStatus = req.params.status;
+        const query = { foodStatus };
+        const result = await foodCollection.find(query).toArray();
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error requested food");
+      }
+    });
+    app.get("/manage-foods/:email", async (req, res) => {
+      try {
+        const donatorEmail = req.params.email;
+        const query = { donatorEmail };
+        const result = await foodCollection.find(query).toArray();
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error manage food");
+      }
+    });
+
+    app.get("/requested-foods/:email", async (req, res) => {
+      try {
+        const userEmail = req.params.email;
+        const query = { userEmail };
+        const result = await foodCollection.find(query).toArray();
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send("Internal Server Error requested food");
+      }
     });
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
   }
+
+  app.get("/", async (req, res) => {
+    res.send("hello bot");
+  });
+
+  app.listen(port, () => {
+    console.log("Server is running on port", port);
+  });
 }
-
-app.get("/", async (req, res) => {
-  res.send("hello bot");
-});
-
-app.listen(port, () => {
-  console.log("Server is running on port", port);
-});
 
 run().catch((error) => {
   console.error("Error starting server:", error);
