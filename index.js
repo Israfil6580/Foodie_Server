@@ -27,13 +27,29 @@ const corsConfig = {
 app.use(cors(corsConfig));
 app.use(express.json());
 app.use(cookieParser());
+
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ messege: "unauthorized access by" });
+  }
+  if (token) {
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+      if (err) {
+        console.log(err);
+        return res.status(401).send({ messege: "unauthorized access by" });
+      }
+      req.user = decoded;
+      next();
+    });
+  }
+};
+
 async function run() {
   const foodCollection = client.db("foddie").collection("food");
-
   // jwt generate
   app.post("/jwt", async (req, res) => {
     const user = req.body;
-    console.log("dynamic user - ", user);
     const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
       expiresIn: "365d",
     });
@@ -45,6 +61,20 @@ async function run() {
       })
       .send({ success: true });
   });
+
+  // clear token on logout
+  app.get("/logout", async (req, res) => {
+    res
+      .clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        maxAge: 0,
+      })
+      .send({ logout: true });
+  });
+
+  //
   try {
     // Define routes inside the try block
     app.get("/food", async (req, res) => {
@@ -146,9 +176,13 @@ async function run() {
         res.status(500).send("Internal Server Error requested food");
       }
     });
-    app.get("/manage-foods/:email", async (req, res) => {
+    app.get("/manage-foods/:email", verifyToken, async (req, res) => {
       try {
+        const tokenData = req.user?.email;
         const donatorEmail = req.params.email;
+        if (tokenData !== donatorEmail) {
+          return res.status(403).send({ messege: "Forbidden Access By" });
+        }
         const query = { donatorEmail };
         const result = await foodCollection.find(query).toArray();
         res.send(result);
@@ -158,9 +192,13 @@ async function run() {
       }
     });
 
-    app.get("/requested-foods/:email", async (req, res) => {
+    app.get("/requested-foods/:email", verifyToken, async (req, res) => {
       try {
+        const tokenData = req.user?.email;
         const userEmail = req.params.email;
+        if (tokenData !== userEmail) {
+          return res.status(403).send({ messege: "Forbidden Access By" });
+        }
         const query = { userEmail };
         const result = await foodCollection.find(query).toArray();
         res.send(result);
