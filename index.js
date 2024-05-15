@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const { CommandSucceededEvent, ObjectId } = require("mongodb");
 const app = express();
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const port = process.env.PORT || 4000;
 require("dotenv").config();
 const { MongoClient, ServerApiVersion } = require("mongodb");
@@ -23,8 +25,39 @@ const corsConfig = {
 };
 app.use(cors(corsConfig));
 app.use(express.json());
+app.use(cookieParser());
+
 async function run() {
   const foodCollection = client.db("foddie").collection("food");
+
+  // create token (JWT)
+
+  app.post("/jwt", async (req, res) => {
+    const user = req.body;
+    const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: "365d",
+    });
+    res
+      .cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      })
+      .send({ success: true });
+  });
+
+  // remove token when logout
+
+  app.get("/logout", (req, res) => {
+    res
+      .clearCookie("token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        maxAge: 0,
+      })
+      .send({ success: true });
+  });
 
   try {
     // Define routes inside the try block
